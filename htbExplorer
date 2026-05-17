@@ -1,6 +1,11 @@
 #!/bin/bash
 
 # Author: Marcelo Vázquez (aka S4vitar)
+#!/usr/bin/env bash
+
+# Original Author: Marcelo Vázquez (aka S4vitar)
+# Maintained & Updated for HTB API v4 by: comandre
+# Date: 2026
 
 #Colours
 declare -r greenColour="\e[0;32m\033[1m"
@@ -13,6 +18,7 @@ declare -r turquoiseColour="\e[0;36m\033[1m"
 declare -r grayColour="\e[0;37m\033[1m"
 
 # Global Variables
+<<<<<<< HEAD
 declare -r USER_AGENT="User-Agent: htbExplorer"
 declare -r url_machines_get_all="https://hackthebox.eu/api/machines/get/all"
 declare -r url_user_id="https://www.hackthebox.eu/api/user/id"
@@ -32,6 +38,30 @@ trap ctrl_c INT
 if [ ! "$API_TOKEN" ]; then
 	echo -e "\n${redColour}[!] You have to enter your API TOKEN in the code${endColour}\n"
 	exit 1
+=======
+declare -r url_api_base="https://labs.hackthebox.com/api/v4/"
+declare -r url_machines_active="${url_api_base}machine/paginated?per_page=100"
+declare -r url_machines_retired="${url_api_base}machine/list/retired/paginated?per_page=100"
+declare -r url_machine_profile="${url_api_base}machine/profile/"
+declare -r url_user_id="${url_api_base}user/info"
+declare -r url_user_profile="${url_api_base}user/profile/basic/"
+declare -r url_reset_machine="${url_api_base}vm/reset"
+declare -r url_spawned_machines="${url_api_base}machine/active"
+declare -r url_vm_spawn="${url_api_base}vm/spawn"
+declare -r url_vm_terminate="${url_api_base}vm/terminate"
+declare -r url_vm_extend="${url_api_base}vm/extend"
+declare -r url_machine_own="${url_api_base}machine/own"
+declare -r url_machines_owns="${url_api_base}machine/owns"
+declare -r tmp_file="tmp.json"
+declare -r API_TOKEN="" # API_TOKEN_HACKTHEBOX
+
+trap ctrl_c INT
+trap 'tput cnorm 2>/dev/null' EXIT
+
+if [ ! "$API_TOKEN" ]; then
+    echo -e "\n${redColour}[!] You have to enter your API TOKEN in the code${endColour}\n"
+    exit 1
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
 fi
 
 function banner(){
@@ -59,11 +89,16 @@ function banner(){
 function ctrl_c(){
     tput cnorm
     echo -e "\n\n${redColour}[!] Exiting...${endColour}"
+<<<<<<< HEAD
     rm getAllMachines shout* user* searchUserName searchMachineName tmp.json 2>/dev/null
+=======
+    rm -rf getAllMachines shout* user* searchUserName searchMachineName tmp.json 2>/dev/null
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     exit 1
 }
 
 function printTable(){
+<<<<<<< HEAD
 
     local -r delimiter="${1}"
     local -r data="$(removeEmptyLines "${2}")"
@@ -117,12 +152,44 @@ function printTable(){
 
 function removeEmptyLines(){
 
+=======
+    python3 -c '
+import sys
+lines = [l.strip() for l in sys.stdin.readlines() if l.strip()]
+if not lines:
+    sys.exit(0)
+rows = [line.split(",") for line in lines]
+cols = len(rows[0])
+widths = [max(len(row[i]) for row in rows) + 1 for i in range(cols)]
+top = "\u250c" + "\u2500" * widths[0]
+mid = "\u251c" + "\u2500" * widths[0]
+bot = "\u2514" + "\u2500" * widths[0]
+for w in widths[1:]:
+    top += "\u252c" + "\u2500" * w
+    mid += "\u253c" + "\u2500" * w
+    bot += "\u2534" + "\u2500" * w
+top += "\u2510"
+mid += "\u2524"
+bot += "\u2518"
+print(top)
+for i, row in enumerate(rows):
+    print("\u2502" + "\u2502".join(" " + row[j].ljust(widths[j] - 1) for j in range(cols)) + "\u2502")
+    if i == 0 or i == len(rows) - 1:
+        print(mid if i == 0 else bot)
+' <<< "$(removeEmptyLines "${2}")"
+}
+
+function removeEmptyLines(){
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     local -r content="${1}"
     echo -e "${content}" | sed '/^\s*$/d'
 }
 
 function repeatString(){
+<<<<<<< HEAD
 
+=======
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     local -r string="${1}"
     local -r numberToRepeat="${2}"
 
@@ -134,7 +201,10 @@ function repeatString(){
 }
 
 function isEmptyString(){
+<<<<<<< HEAD
 
+=======
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     local -r string="${1}"
 
     if [[ "$(trimString "${string}")" = '' ]]
@@ -146,11 +216,15 @@ function isEmptyString(){
 }
 
 function trimString(){
+<<<<<<< HEAD
 
+=======
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     local -r string="${1}"
     sed 's,^[[:blank:]]*,,' <<< "${string}" | sed 's,[[:blank:]]*$,,'
 }
 
+<<<<<<< HEAD
 function generateFiles(){
 
     echo '' > $tmp_file
@@ -176,6 +250,49 @@ getAllMachines(){
         let id+=1
     done
 
+=======
+function auth_curl(){
+    curl -s -H "Authorization: Bearer $API_TOKEN" -H "Accept: application/json" "$@"
+}
+
+function generateFiles(){
+	cache_file="/tmp/htbExplorer_cache.json"
+	if [ -f "$cache_file" ] && [ $(( $(date +%s) - $(stat -c %Y "$cache_file") )) -lt 900 ]; then
+		cp "$cache_file" "$tmp_file"
+		return
+	fi
+
+	tmp_dir=$(mktemp -d)
+
+	auth_curl "$url_machines_active" > "$tmp_dir/active.json"
+	jq '[.data[] | {name, ip, os, points, xp: .static_points, rating: .star, user_owns: .user_owns_count, root_owns: .root_owns_count, retired: "No", release: (.release[0:10] // ""), retired_date: null, free, id}]' "$tmp_dir/active.json" > "$tmp_dir/active_clean.json"
+
+	auth_curl "${url_machines_retired}&page=1" > "$tmp_dir/retired.json"
+	total=$(jq '.meta.total // 0' "$tmp_dir/retired.json")
+	jq '[.data[] | {name, ip, os, points, xp: .static_points, rating: .star, user_owns: .user_owns_count, root_owns: .root_owns_count, retired: "Yes", release: (.release[0:10] // ""), retired_date: null, free, id}]' "$tmp_dir/retired.json" > "$tmp_dir/retired_clean.json"
+
+	pages=$(( (total + 99) / 100 ))
+	for ((p=2; p<=pages; p++)); do
+		(auth_curl "${url_machines_retired}&page=${p}" > "$tmp_dir/retired_page_${p}.json" && \
+		 jq '[.data[] | {name, ip, os, points, xp: .static_points, rating: .star, user_owns: .user_owns_count, root_owns: .root_owns_count, retired: "Yes", release: (.release[0:10] // ""), retired_date: null, free, id}]' "$tmp_dir/retired_page_${p}.json" >> "$tmp_dir/retired_clean.json") &
+	done
+	wait
+
+	jq -s 'add' "$tmp_dir/active_clean.json" "$tmp_dir/retired_clean.json" > "$tmp_file"
+	cp "$tmp_file" "$cache_file"
+
+	rm -rf "$tmp_dir"
+}
+
+function machineToCSV(){
+    local outfile=$1
+    echo "Name, IP, OS, Points, Base, Rating, User Owns, Root Owns, Retired, Released, R.Date, Free, ID" > "$outfile"
+    jq -r '.[] | [.name, (.ip // "-"), .os, .points, .xp, .rating, .user_owns, .root_owns, .retired, (.release // ""), (.retired_date // "-"), (.free | if . then "Yes" else "No" end), .id] | @csv' "$tmp_file" | tr -d '"' >> "$outfile"
+}
+
+function getAllMachines(){
+    machineToCSV "getAllMachines"
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     echo -ne "${greenColour}"
     printTable ',' "$(cat getAllMachines)"
     echo -e "${endColour}"
@@ -183,6 +300,7 @@ getAllMachines(){
 }
 
 function getActiveMachines(){
+<<<<<<< HEAD
 
     
 
@@ -199,6 +317,11 @@ function getActiveMachines(){
     sed -i '/Is Active/!d' getActiveMachines
     sed -i '1 i\Name, IP Address, Operating System, Points, Rating, User Owns, Root Owns, Retired, Release Date, Retired Date, Free Lab, Machine ID' getActiveMachines
 
+=======
+    machineToCSV "getActiveMachines"
+    awk -F',' '$9 == "No"' getActiveMachines > getActiveMachines.tmp && mv getActiveMachines.tmp getActiveMachines
+    sed -i '1 i\Name, IP, OS, Points, Base, Rating, User Owns, Root Owns, Retired, Released, R.Date, Free, ID' getActiveMachines
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     echo -ne "${greenColour}"
     printTable ',' "$(cat getActiveMachines)"
     echo -e "${endColour}"
@@ -206,6 +329,7 @@ function getActiveMachines(){
 }
 
 function getRetiredMachines(){
+<<<<<<< HEAD
 
     
     echo "Name, IP Address, Operating System, Points, Rating, User Owns, Root Owns, Retired, Release Date, Retired Date, Free Lab, Machine ID" >> getRetiredMachines
@@ -222,12 +346,17 @@ function getRetiredMachines(){
 
     sed -i '/Is Active/d' getRetiredMachines
 
+=======
+    machineToCSV "getRetiredMachines"
+    awk -F',' '$9 == "Yes"' getRetiredMachines > getRetiredMachines.tmp && mv getRetiredMachines.tmp getRetiredMachines
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     echo -ne "${greenColour}"
     printTable ',' "$(cat getRetiredMachines)"
     echo -e "${endColour}"
     rm getRetiredMachines 2>/dev/null
 }
 
+<<<<<<< HEAD
 function getActiveLinuxMachines(){
 
     
@@ -542,10 +671,92 @@ function getSpawnedMachines(){
 	spawned_machines_response=$(curl -s -X GET "$url_spawned_machines?api_token=$API_TOKEN" | jq '.["status"]' | tr -d '"')
 	echo -e "\n${redColour}[!] $spawned_machines_response${endColour}\n"
 	rm getAllMachines 2>/dev/null; tput cnorm
+=======
+function filterMachinesByOS(){
+    local filter_name=$1
+    local os_filter=$2
+    local exclude_os=$3
+    machineToCSV "$filter_name"
+    awk -F',' '$9 == "No"' "$filter_name" > "$filter_name.tmp" && mv "$filter_name.tmp" "$filter_name"
+    if [ "$exclude_os" == "true" ]; then
+        for os in Linux Windows FreeBSD OpenBSD Solaris Other; do
+            [ "$os" == "$os_filter" ] && continue
+            sed -i "/$os/d" "$filter_name"
+        done
+    fi
+    sed -i '1 i\Name, IP, OS, Points, Base, Rating, User Owns, Root Owns, Retired, Released, R.Date, Free, ID' "$filter_name"
+    echo -ne "${greenColour}"
+    printTable ',' "$(cat "$filter_name")"
+    echo -e "${endColour}"
+    rm "$filter_name" 2>/dev/null
+}
+
+function getActiveLinuxMachines(){
+    filterMachinesByOS "getActiveLinuxMachines" "Linux" "true"
+}
+
+function getActiveWindowsMachines(){
+    filterMachinesByOS "getActiveWindowsMachines" "Windows" "true"
+}
+
+function getActiveFreebsdMachines(){
+    filterMachinesByOS "getActiveFreebsdMachines" "FreeBSD" "true"
+}
+
+function getActiveOpenbsdMachines(){
+    filterMachinesByOS "getActiveOpenbsdMachines" "OpenBSD" "true"
+}
+
+function getActiveOtherMachines(){
+    filterMachinesByOS "getActiveOtherMachines" "Other" "true"
+}
+
+function filterRetiredByOS(){
+    local filter_name=$1
+    local os_filter=$2
+    machineToCSV "$filter_name"
+    awk -F',' '$9 == "Yes"' "$filter_name" > "$filter_name.tmp" && mv "$filter_name.tmp" "$filter_name"
+    for os in Linux Windows FreeBSD OpenBSD Solaris Other; do
+        [ "$os" == "$os_filter" ] && continue
+        sed -i "/$os/d" "$filter_name"
+    done
+    echo -ne "${greenColour}"
+    printTable ',' "$(cat "$filter_name")"
+    echo -e "${endColour}"
+    rm "$filter_name" 2>/dev/null
+}
+
+function getRetiredWindowsMachines(){   filterRetiredByOS "getRetiredWindowsMachines" "Windows"; }
+function getRetiredFreebsdMachines(){   filterRetiredByOS "getRetiredFreebsdMachines" "FreeBSD"; }
+function getRetiredOpenbsdMachines(){   filterRetiredByOS "getRetiredOpenbsdMachines" "OpenBSD"; }
+function getRetiredLinuxMachines(){     filterRetiredByOS "getRetiredLinuxMachines" "Linux"; }
+function getRetiredOtherMachines(){     filterRetiredByOS "getRetiredOtherMachines" "Other"; }
+
+function getSpawnedMachines(){
+    machineToCSV "getAllMachines"
+    spawned_response=$(auth_curl -X GET "$url_spawned_machines")
+    spawned_id=$(echo "$spawned_response" | jq '.info.id // empty' 2>/dev/null)
+    spawned_ip=$(echo "$spawned_response" | jq -r '.info.ip // empty' 2>/dev/null)
+
+    if [ "$spawned_id" ]; then
+        cat getAllMachines | grep ",$spawned_id$" > getSpawnedMachines
+        sed -i '1 i\Name, IP, OS, Points, Base, Rating, User Owns, Root Owns, Retired, Released, R.Date, Free, ID' getSpawnedMachines
+        if [ -n "$spawned_ip" ] && [ "$spawned_ip" != "null" ]; then
+            awk -F',' -v OFS=',' -v ip="$spawned_ip" 'NR==1{print; next} {$2=ip; print}' getSpawnedMachines > getSpawnedMachines.tmp && mv getSpawnedMachines.tmp getSpawnedMachines
+        fi
+        echo -ne "${greenColour}"
+        printTable ',' "$(cat getSpawnedMachines)"
+        echo -ne "${endColour}"
+        rm getAllMachines getSpawnedMachines 2>/dev/null; tput cnorm
+    else
+        echo -e "\n${redColour}[!] No machine is currently spawned${endColour}\n"
+        rm getAllMachines 2>/dev/null; tput cnorm
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     fi
 }
 
 function getOwnedMachines(){
+<<<<<<< HEAD
 
     
 
@@ -570,10 +781,21 @@ function getOwnedMachines(){
     printTable ',' "$(cat getOwnedMachines)"
     echo -ne "${endColour}"
 
+=======
+    machineToCSV "getAllMachines"
+    auth_curl "$url_machines_owns" | jq '.data[]' 2>/dev/null | grep id | awk 'NF{print $NF}' | tr -d ',' | while read owned_id; do
+        cat getAllMachines | grep ",$owned_id$" >> getOwnedMachines
+    done
+    sed -i '1 i\Name, IP, OS, Points, Base, Rating, User Owns, Root Owns, Retired, Released, R.Date, Free, ID' getOwnedMachines
+    echo -ne "${greenColour}"
+    printTable ',' "$(cat getOwnedMachines)"
+    echo -ne "${endColour}"
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     rm getAllMachines getOwnedMachines 2>/dev/null; tput cnorm
 }
 
 function getActiveOwnedMachines(){
+<<<<<<< HEAD
 
     
 
@@ -600,10 +822,22 @@ function getActiveOwnedMachines(){
     printTable ',' "$(cat getOwnedMachines)"
     echo -ne "${endColour}"
 
+=======
+    machineToCSV "getAllMachines"
+    auth_curl "$url_machines_owns" | jq '.data[]' 2>/dev/null | grep id | awk 'NF{print $NF}' | tr -d ',' | while read owned_id; do
+        cat getAllMachines | grep ",$owned_id$" >> getOwnedMachines
+    done
+    awk -F',' '$9 == "No"' getOwnedMachines > getOwnedMachines.tmp && mv getOwnedMachines.tmp getOwnedMachines
+    sed -i '1 i\Name, IP, OS, Points, Base, Rating, User Owns, Root Owns, Retired, Released, R.Date, Free, ID' getOwnedMachines
+    echo -ne "${greenColour}"
+    printTable ',' "$(cat getOwnedMachines)"
+    echo -ne "${endColour}"
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     rm getAllMachines getOwnedMachines 2>/dev/null; tput cnorm
 }
 
 function searchMachineName(){
+<<<<<<< HEAD
 
     
     s_machine_name=$1
@@ -654,18 +888,62 @@ function searchIPAddress(){
     if [ "$(cat searchIPAddress | wc -l)" != "0" ]; then
 	sed -i '1 i\Name, IP Address, Operating System, Points, Rating, User Owns, Root Owns, Retired, Release Date, Retired Date, Free Lab, Machine ID' searchIPAddress
 
+=======
+    s_machine_name=$1
+    machineToCSV "searchMachineName"
+	grep -i "$s_machine_name" searchMachineName > "${tmp_file}_search" 2>/dev/null
+	mv "${tmp_file}_search" searchMachineName 2>/dev/null
+
+	if [ "$(cat searchMachineName | wc -l)" != "0" ]; then
+		spawned_response=$(auth_curl -X GET "$url_spawned_machines")
+		spawned_id=$(echo "$spawned_response" | jq '.info.id // empty' 2>/dev/null)
+		spawned_ip=$(echo "$spawned_response" | jq -r '.info.ip // empty' 2>/dev/null)
+		while IFS=',' read -r name ip os pts base rating u_owns r_owns retired released rdate free id; do
+			xp=$(auth_curl "${url_machine_profile}${id}" | jq '.info.experience_points // .experience_points // empty' 2>/dev/null)
+			[ "$xp" ] && sed -i "s/,${base},/,${xp},/" searchMachineName
+			if [ -n "$spawned_ip" ] && [ "$spawned_ip" != "null" ] && [ "$id" = "$spawned_id" ]; then
+				awk -F',' -v OFS=',' -v ip="$spawned_ip" -v sid="$spawned_id" '$NF==sid{$2=ip}1' searchMachineName > searchMachineName.tmp && mv searchMachineName.tmp searchMachineName
+			fi
+		done <<< "$(tail -n +1 searchMachineName | grep -v '^Name,')"
+		sed -i '1 i\Name, IP, OS, Points, XP, Rating, User Owns, Root Owns, Retired, Released, R.Date, Free, ID' searchMachineName
+		echo -ne "${greenColour}"
+		printTable ',' "$(cat searchMachineName)"
+		echo -ne "${endColour}"
+		tput cnorm; rm searchMachineName 2>/dev/null
+	else
+		echo -e "\n${redColour}[!] There is no machine with that name${endColour}\n"
+		rm searchMachineName 2>/dev/null; tput cnorm
+		exit 1
+	fi
+}
+
+function searchIPAddress(){
+    ipAddress=$1
+    machineToCSV "searchIPAddress"
+    sed -i "/$ipAddress,/!d" searchIPAddress
+
+    if [ "$(cat searchIPAddress | wc -l)" != "0" ]; then
+        sed -i '1 i\Name, IP, OS, Points, Base, Rating, User Owns, Root Owns, Retired, Released, R.Date, Free, ID' searchIPAddress
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
         echo -ne "${greenColour}"
         printTable ',' "$(cat searchIPAddress)"
         echo -ne "${endColour}"
         tput cnorm; rm searchIPAddress 2>/dev/null
     else
+<<<<<<< HEAD
 	echo -e "\n${redColour}[!] There is no machine with that IP address${endColour}\n"
 	rm searchIPAddress 2>/dev/null; tput cnorm
 	exit 1
+=======
+        echo -e "\n${redColour}[!] There is no machine with that IP address${endColour}\n"
+        rm searchIPAddress 2>/dev/null; tput cnorm
+        exit 1
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     fi
 }
 
 function searchUserName(){
+<<<<<<< HEAD
 
     username=$1
     id_username=$(curl -s -X POST "$url_user_id?api_token=$API_TOKEN" -L --data "username=$username" | tr "'" '"' | sed 's/None/\"None\"/g' | sed 's/True/\"True\"/g' | sed 's/False/\"False\"/g' | jq '.["id"]')
@@ -878,10 +1156,101 @@ function sendFlags(){
     if [[ ! $(echo $1) =~ "=" ]]; then
 	helpPanel
 	exit 1
+=======
+    username=$1
+    user_data=$(auth_curl "${url_user_id}?username=$username")
+    id_username=$(echo "$user_data" | jq '.info.id // empty' 2>/dev/null)
+
+    if [ "$id_username" ]; then
+        user_profile=$(auth_curl "${url_user_profile}${id_username}")
+        user_owns=$(echo "$user_profile" | jq -r '.profile.user_owns // "0"' 2>/dev/null)
+        root_owns=$(echo "$user_profile" | jq -r '.profile.system_owns // "0"' 2>/dev/null)
+        rank=$(echo "$user_profile" | jq -r '.profile.rank // "Unknown"' 2>/dev/null)
+
+        echo "Username,ID,User Owns,System Owns,Rank" > searchUserName
+        echo "$username,$id_username,$user_owns,$root_owns,$rank" >> searchUserName
+
+        echo -ne "${yellowColour}"
+        printTable ',' "$(cat searchUserName)"
+        echo -ne "${endColour}"
+        tput cnorm; rm searchUserName 2>/dev/null
+    else
+        echo -e "\n${redColour}[!] User not found${endColour}\n"
+        rm searchUserName 2>/dev/null; tput cnorm
+    fi
+}
+
+function getMachineIDByName(){
+    local machine_name=$1
+    machineToCSV "searchMachineName"
+    local mid=$(cat searchMachineName | grep -i "$machine_name," | tr ',' ' ' | awk 'NF{print $NF}')
+    rm searchMachineName 2>/dev/null
+    echo "$mid"
+}
+
+function resetMachineName(){
+    reset_machineName=$1
+    mid=$(getMachineIDByName "$reset_machineName")
+    if [ "$mid" ]; then
+        response=$(auth_curl -X POST "${url_reset_machine}" --data "machine_id=$mid" | jq '.["message"] // .["status"] // "ok"' | tr -d '"')
+        echo -e "\n${yellowColour}[*]${endColour}${grayColour} $response${endColour}\n"
+    else
+        echo -e "\n${redColour}[!] Machine not found${endColour}\n"
+    fi
+    tput cnorm
+}
+
+function deployMachine(){
+    deployMachineName=$1
+    mid=$(getMachineIDByName "$deployMachineName")
+    if [ "$mid" ]; then
+        response=$(auth_curl -X POST "${url_vm_spawn}" --data "machine_id=$mid" | jq '.["message"] // .["status"] // "ok"' | tr -d '"')
+        echo -e "\n${yellowColour}[*]${endColour}${grayColour} $response${endColour}\n"
+    else
+        echo -e "\n${redColour}[!] Machine not found${endColour}\n"
+    fi
+    tput cnorm
+}
+
+function stopMachine(){
+    stopMachineName=$1
+    mid=$(getMachineIDByName "$stopMachineName")
+    if [ "$mid" ]; then
+        response=$(auth_curl -X POST "${url_vm_terminate}" --data "machine_id=$mid" | jq '.["message"] // .["status"] // "ok"' | tr -d '"')
+        echo -e "\n${yellowColour}[*]${endColour}${grayColour} $response${endColour}\n"
+    else
+        echo -e "\n${redColour}[!] Machine not found${endColour}\n"
+    fi
+    tput cnorm
+}
+
+function extendMachine(){
+    extendMachineName=$1
+    mid=$(getMachineIDByName "$extendMachineName")
+    if [ "$mid" ]; then
+        response=$(auth_curl -X POST "${url_vm_extend}" --data "machine_id=$mid" | jq '.["message"] // .["status"] // "ok"' | tr -d '"')
+        echo -e "\n${yellowColour}[*]${endColour}${grayColour} $response${endColour}\n"
+    else
+        echo -e "\n${redColour}[!] Machine not found${endColour}\n"
+    fi
+    tput cnorm
+}
+
+function assignMachine(){
+    echo -e "\n${yellowColour}[*]${endColour}${grayColour} Use -d (deploy) to spawn a machine${endColour}\n"
+    tput cnorm
+}
+
+function sendFlags(){
+    if [[ ! $(echo $1) =~ "=" ]]; then
+        helpPanel
+        exit 1
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     fi
 
     f_machine_name=$(echo $1 | cut -d "=" -f1)
     flag=$(echo $1 | cut -d "=" -f2)
+<<<<<<< HEAD
 
     id=0; while [ "$field_value" != "null,null,null,null,null,null,null,null,null,null,null,null" ]; do
         field_value=$(cat $tmp_file | jq ".[$id][\"name\",\"ip\",\"os\",\"points\",\"rating\",\"user_owns\",\"root_owns\",\"retired\",\"release\",\"retired_date\",\"free\",\"id\"]" | tr -d '"' | xargs | tr ' ' ',')
@@ -911,12 +1280,31 @@ function sendFlags(){
 	echo -e "\n${redColour}[!] There is no machine with that name${endColour}\n"
 	rm searchMachineName 2>/dev/null; tput cnorm
 	exit 1
+=======
+    mid=$(getMachineIDByName "$f_machine_name")
+
+    if [ "$mid" ]; then
+        response=$(auth_curl -X POST "$url_machine_own" -H "Content-Type: application/x-www-form-urlencoded" -d "flag=$flag&difficulty=50&machine_id=$mid" | jq '.["status"] // .["message"]' | tr -d '"')
+        if [[ $response =~ "Incorrect" ]]; then
+            echo -e "${redColour}[!] $response${endColour}"
+        elif [[ $response =~ "found" ]]; then
+            echo -e "${redColour}[!] $response${endColour}"
+        else
+            echo -e "${greenColour}[+] $response${endColour}"
+        fi
+        tput cnorm
+    else
+        echo -e "\n${redColour}[!] There is no machine with that name${endColour}\n"
+        tput cnorm
+        exit 1
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     fi
 }
 
 function downloadVPN(){
     tput cnorm
     echo -e "\n${yellowColour}[*]${endColour}${grayColour} You need to login first...${endColour}\n"
+<<<<<<< HEAD
     python3 downloadVPN.py $1
     echo -e "\n${greenColour}[V]${endColour}${grayColour} The VPN has been download successfuly${endColour}"
 }
@@ -955,6 +1343,27 @@ function dependencies(){
 #		if [ "$(echo $counter)" == "1" ]; then
 #			sleep
 #		fi
+=======
+    python3 downloadVPN.py "$1" 2>/dev/null || echo -e "\n${redColour}[!] downloadVPN.py not found${endColour}\n"
+}
+
+function dependencies(){
+    if [ "$(echo $UID)" == "0" ]; then
+        tput civis
+        dependencies_array=(html2text jq)
+        echo; for program in "${dependencies_array[@]}"; do
+            if [ ! "$(command -v $program)" ]; then
+                echo -e "${redColour}[X]${endColour}${grayColour} $program${endColour}${yellowColour} is not installed${endColour}"; sleep 1
+                echo -e "\n${yellowColour}[i]${endColour}${grayColour} Installing...${endColour}"; sleep 1
+                apt install $program -y > /dev/null 2>&1
+                echo -e "\n${greenColour}[V]${endColour}${grayColour} $program${endColour}${yellowColour} installed${endColour}\n"; sleep 2
+            fi
+        done
+    else
+        echo -e "\n${redColour}[!] You need to run the program as root${endColour}\n"
+        exit 1
+    fi
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
 }
 
 function helpPanel(){
@@ -987,8 +1396,11 @@ function helpPanel(){
     echo -e "\t${grayColour}[-x]${endColour}${yellowColour} Extend a machine time${endColour} ${blueColour}\t\t (Example: -x Legacy)${endColour}${redColour} [Only for VIP members]${endColour}\n"
     echo -e "\t${grayColour}[-f]${endColour}${yellowColour} Send a flag${endColour} ${blueColour}\t\t\t (Example: -f Bucket=flag123)${endColour}\n"
     echo -e "\t${grayColour}[-u]${endColour}${yellowColour} Search username${endColour} ${blueColour}\t\t\t (Example: -u s4vitar)${endColour}\n"
+<<<<<<< HEAD
     echo -e "\t${grayColour}[-c]${endColour}${yellowColour} Show latest shoutbox messages${endColour}${blueColour}\t (Example: -c 50)${endColour}\n"
     echo -e "\t${grayColour}[-w]${endColour}${yellowColour} Who is chatting${endColour}${blueColour}\t\t\t (Example: -w 50)${endColour}\n"
+=======
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     echo -e "\t${grayColour}[-v]${endColour}${yellowColour} Download VPN${endColour}${blueColour}\t\t\t (Example: -v s4vitar.ovpn)${endColour}\n"
     tput cnorm; exit 1
 }
@@ -996,8 +1408,13 @@ function helpPanel(){
 dependencies; parameter_counter=0
 tput civis; while getopts ":e:s:i:u:r:c:w:d:k:x:a:v:f:h:" arg; do
     case $arg in
+<<<<<<< HEAD
 	e) explorer_mode=$OPTARG && let parameter_counter+=1;;
 	s) search_machine_name=$OPTARG && let parameter_counter+=1;;
+=======
+        e) explorer_mode=$OPTARG && let parameter_counter+=1;;
+        s) search_machine_name=$OPTARG && let parameter_counter+=1;;
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
         i) ip_address=$OPTARG && let parameter_counter+=1;;
         u) user_name=$OPTARG && let parameter_counter+=1;;
         r) reset_machineName=$OPTARG && let parameter_counter+=1;;
@@ -1009,7 +1426,11 @@ tput civis; while getopts ":e:s:i:u:r:c:w:d:k:x:a:v:f:h:" arg; do
         a) machine_to_assign=$OPTARG && let parameter_counter+=1;;
         f) send_flag=$OPTARG && let parameter_counter+=1;;
         v) download_vpn=$OPTARG;;
+<<<<<<< HEAD
 	h) helpPanel;;
+=======
+        h) helpPanel;;
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     esac
 done
 
@@ -1057,6 +1478,7 @@ if [ $machine_to_extend ] && [ $API_TOKEN ]; then
     rm tmp.json 2>/dev/null; exit 0
 fi
 
+<<<<<<< HEAD
 if [ $machine_to_assign ] && [ $API_TOKEN ];  then
     assignMachine $machine_to_assign
     rm tmp.json 2>/dev/null; exit 0
@@ -1064,11 +1486,24 @@ fi
 
 if [ $shoutbox_messages ]  && [ $API_TOKEN ]; then
     shoutBoxMessages $shoutbox_messages
+=======
+if [ $machine_to_assign ] && [ $API_TOKEN ]; then
+    echo -e "\n${yellowColour}[*]${endColour}${grayColour} Use -d to spawn a machine${endColour}\n"
+    rm tmp.json 2>/dev/null; exit 0
+fi
+
+if [ $shoutbox_messages ] && [ $API_TOKEN ]; then
+    echo -e "\n${yellowColour}[*]${endColour}${grayColour} Shoutbox is no longer available in the HTB API${endColour}\n"
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     rm tmp.json 2>/dev/null; exit 0
 fi
 
 if [ $whois_messages ] && [ $API_TOKEN ]; then
+<<<<<<< HEAD
     whoisChatting $whois_messages
+=======
+    echo -e "\n${yellowColour}[*]${endColour}${grayColour} Shoutbox is no longer available in the HTB API${endColour}\n"
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     rm tmp.json 2>/dev/null; exit 0
 fi
 
@@ -1085,6 +1520,7 @@ if [ $explorer_mode ] && [ $API_TOKEN ]; then
     elif [ "$(echo $explorer_mode)" == "retired_machines" ]; then
         getRetiredMachines
     elif [ "$(echo $explorer_mode)" == "active_linux_machines" ]; then
+<<<<<<< HEAD
 		getActiveLinuxMachines
     elif [ "$(echo $explorer_mode)" == "active_windows_machines" ]; then
         getActiveWindowsMachines
@@ -1098,10 +1534,22 @@ if [ $explorer_mode ] && [ $API_TOKEN ]; then
         getRetiredFreebsdMachines
     elif [ "$(echo $explorer_mode)" == "retired_openbsd_machines" ]; then
         getRetiredOpenbsdMachines
+=======
+        getActiveLinuxMachines
+    elif [ "$(echo $explorer_mode)" == "active_windows_machines" ]; then
+        getActiveWindowsMachines
+    elif [ "$(echo $explorer_mode)" == "retired_linux_machines" ]; then
+        getRetiredLinuxMachines
+    elif [ "$(echo $explorer_mode)" == "retired_windows_machines" ]; then
+        getRetiredWindowsMachines
+    elif [ "$(echo $explorer_mode)" == "active_freebsd_machines" ]; then
+        getActiveFreebsdMachines
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     elif [ "$(echo $explorer_mode)" == "active_openbsd_machines" ]; then
         getActiveOpenbsdMachines
     elif [ "$(echo $explorer_mode)" == "active_other_machines" ]; then
         getActiveOtherMachines
+<<<<<<< HEAD
     elif [ "$(echo $explorer_mode)" == "retired_other_machines" ]; then
         getRetiredOtherMachines
     elif [ "$(echo $explorer_mode)" == "spawned_machines" ]; then
@@ -1110,6 +1558,20 @@ if [ $explorer_mode ] && [ $API_TOKEN ]; then
 		getOwnedMachines
     elif [ "$(echo $explorer_mode)" == "owned_active_machines" ]; then
 		getActiveOwnedMachines
+=======
+    elif [ "$(echo $explorer_mode)" == "retired_freebsd_machines" ]; then
+        getRetiredFreebsdMachines
+    elif [ "$(echo $explorer_mode)" == "retired_openbsd_machines" ]; then
+        getRetiredOpenbsdMachines
+    elif [ "$(echo $explorer_mode)" == "retired_other_machines" ]; then
+        getRetiredOtherMachines
+    elif [ "$(echo $explorer_mode)" == "spawned_machines" ]; then
+        getSpawnedMachines
+    elif [ "$(echo $explorer_mode)" == "owned_machines" ]; then
+        getOwnedMachines
+    elif [ "$(echo $explorer_mode)" == "owned_active_machines" ]; then
+        getActiveOwnedMachines
+>>>>>>> 3af4ffd (initial commit: migrate to HackTheBox API v4 and optimize tables)
     fi
 else
     helpPanel
